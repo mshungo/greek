@@ -1,6 +1,6 @@
 # Naralingo Graeca（古典ギリシア語・ひとり用）
 
-フランス語版 Naralingo の姉妹版。ログインは `morita` / `shika`。
+フランス語版 Naralingo の姉妹版。ログインは `MORITA7k3q` / `shika`（ID の大文字・小文字は区別しない）。
 
 ## ファイル
 | ファイル | 中身 |

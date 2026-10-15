@@ -1,6 +1,6 @@
 /* ============================================================
    Naralingo Graeca — 古典ギリシア語の自習アプリ（ひとり用）
-   ・ログイン：morita / shika（パスワードはハッシュだけを置く）
+   ・ログイン：MORITA7k3q / shika（ID の大文字・小文字は区別しない。パスワードはハッシュだけを置く）
    ・記録：この端末の localStorage。config.js に Apps Script の URL を書けば、端末どうしで同期
    ・画面：#/（ホーム） #/day/N/step（レッスン） #/review（復習） #/tables（文法表）
    ・復習カード（間隔反復）：1段目→翌日 / 2→3日後 / 3→1週間後 / 4→2週間後 / 5→1か月後 / 6＝定着（2か月後）
@@ -9,7 +9,7 @@
 "use strict";
 const CFG = window.GRK_CONFIG || {};
 const COURSE = window.COURSE;
-const LOGIN_HASH = "ccd5562337f5acce12c2615bb5b1b393b0eeed184e44f51ee707c03ccedddd00";
+const LOGIN_HASH = "d708a9d7fc86722a5a5d1aa9d36118ed5adbbbfedd4d2296c0d3c92d21d6e192";
 const LOGIN_KEY = "grkLogin", PREF_KEY = "grkPrefs";
 const INT = [0, 1, 3, 7, 14, 30, 60];
 const STEPS = [["intro", "解説"], ["vocab", "単語"], ["drill", "練習"], ["read", "読解"], ["test", "テスト"]];
@@ -122,12 +122,13 @@ function setPref(k, v) { prefs()[k] = v; lsSet(PREF_KEY, JSON.stringify(prefCach
    ログイン
    ============================================================ */
 let user = jget(LOGIN_KEY, null) || (function () { try { return JSON.parse(sessionStorage.getItem(LOGIN_KEY)); } catch (e) { return null; } })();
+if (user && user.ver !== 2) user = null;   // ID を変える前のログイン情報は使わない（同期の鍵が変わったので、ログインし直す）
 async function login(id, pw, remember) {
   id = String(id || "").normalize("NFKC").trim().toLowerCase(); pw = String(pw || "").normalize("NFKC").trim();
   const h = await sha256("naralingo-greek:login:" + id + ":" + pw);
   if (h !== LOGIN_HASH) return false;
   const sk = await sha256("naralingo-greek:sync:" + id + ":" + pw);
-  user = { id: id.toUpperCase(), name: "森田", sk };
+  user = { id: "MORITA", name: "森田", sk, ver: 2 };   // 記録の保存先（grk_v1_MORITA）は ID を変えても同じ
   const rec = JSON.stringify(user);
   if (remember) lsSet(LOGIN_KEY, rec); else { try { sessionStorage.setItem(LOGIN_KEY, rec); } catch (e) {} }
   store = null; S();
