@@ -113,7 +113,7 @@ const GK = (function () {
    ============================================================ */
 let prefCache = null;
 function prefs() {
-  if (!prefCache) { prefCache = jget(PREF_KEY, {}) || {}; if (prefCache.conv === undefined) prefCache.conv = true; }
+  if (!prefCache) { prefCache = jget(PREF_KEY, {}) || {}; if (prefCache.conv === undefined) prefCache.conv = true; if (!prefCache.rd) prefCache.rd = "both"; }
   return prefCache;
 }
 function setPref(k, v) { prefs()[k] = v; lsSet(PREF_KEY, JSON.stringify(prefCache)); }
@@ -269,7 +269,7 @@ const ALL_VOCAB = () => Object.keys(CARD).filter(k => CARD[k].kind === "vocab").
 function pick4(a, pool) { return [a].concat(shuffle(pool.filter(x => x !== a)).slice(0, 3)); }
 function vocabChoice(w, pool) {
   const ja = pick4(w.ja, (pool || ALL_VOCAB()).map(x => x.ja).filter((x, i, ar) => ar.indexOf(x) === i));
-  return { t: "c", q: '<span class="big">' + w.g + '</span><div class="qsub">' + esc(w.h || "") + '</div>', a: w.ja, o: ja, ex: (w.note ? w.note : "") };
+  return { t: "c", q: '<span class="big">' + w.g + '</span>' + rdHTML(w.g, "rdq") + '<div class="qsub">' + esc(w.h || "") + '</div>', a: w.ja, o: ja, ex: (w.note ? w.note : ""), rd: false };
 }
 function cardItem(id) {
   const c = CARD[id], st = S().cards[id], l = st ? st.l : 1;
@@ -284,15 +284,34 @@ function cardItem(id) {
     if (l <= 2) it = vocabChoice(w);
     else it = { t: "w", q: "「" + esc(w.ja) + "」をギリシア語で" + (l === 3 ? '<div class="qsub">ヒント：' + esc(w.g.normalize("NFD").replace(/[̀-ͯ]/g, "").charAt(0)) + "…</div>" : ""), a: w.a || [w.g], ex: w.g + (w.h ? "（" + w.h + "）" : "") };
   } else if (c.kind === "form") {
-    const p = c.p, q = p.lemma + "（" + p.ja + "）の <b>" + c.lab + "</b>";
+    const p = c.p, q = p.lemma + "（" + p.ja + "）の <b>" + c.lab + "</b>" + rdHTML(p.lemma, "rdq");
     const all = (p.kind === "v" ? p.f : p.sg.concat(p.pl)).filter((x, i, ar) => ar.indexOf(x) === i);
     if (l <= 1) it = { t: "c", q, a: c.f, o: pick4(c.f, all), ex: tableText(p) };
     else it = { t: "w", q, a: [c.f], ex: tableText(p) };
   } else it = { t: "s", g: c.g, ja: c.ja };
+  if (c.kind === "letter") it.rd = false;
   it.cid = id; it.id = "c:" + id;
   return it;
 }
 function tableText(p) { return p.kind === "v" ? p.f.join(" ") : p.sg.join(" ") + " | " + p.pl.join(" "); }
+/* 読み（ローマ字・IPA）。設定で「両方／ローマ字／IPA／なし」を選ぶ。1文字だけのときは文字表の音 */
+function rdHTML(t, cls) {
+  const m = prefs().rd || "both"; t = String(t == null ? "" : t).trim();
+  if (m === "none" || !hasGk(t)) return "";
+  let r, i, unk = false;
+  const L = COURSE.alpha.find(a => a[1] === t || a[0] === t || (t === "ς" && a[1] === "σ"));
+  if (L) { r = L[3]; i = COURSE.alphaIPA[L[1]]; }
+  else { const x = COURSE.read(t); r = x.r; i = x.i; unk = x.unk; }
+  let h = "";
+  if (m !== "ipa") h += '<span class="rd-r">' + esc(r) + '</span>';
+  if (m !== "roman") h += '<span class="rd-i">[' + esc(i) + ']</span>';
+  if (unk && m !== "roman") h += '<span class="rd-u">（ː）＝長短未確定</span>';
+  return '<span class="rd' + (cls ? " " + cls : "") + '">' + h + '</span>';
+}
+function hasGk(s) { return /[\u0370-\u03FF\u1F00-\u1FFF]/.test(String(s || "")); }
+function bigs(q) { const out = []; String(q || "").replace(/<span class="big">([^<]+)<\/span>/g, (m, g) => { if (hasGk(g)) out.push(g); }); return out; }
+/* 答える前に読みを出すか：Day 3 以降の問題（Day 1・2 は読み方そのものを問うので、答えたあとだけ） */
+function showRd(it) { if (it.rd === true) return true; if (it.rd === false) return false; const m = /^d(\d+)-/.exec(it.id || ""); return !!m && +m[1] >= 3; }
 
 /* ============================================================
    画面の部品
@@ -308,16 +327,16 @@ function parTable(p) {
   let h = '<div class="par"><div class="par-h">' + gk(esc(p.title || p.lemma)) + '</div><table>';
   if (p.kind === "v") {
     h += '<tr><th></th><th>単数</th><th>複数</th></tr>';
-    ["1人称", "2人称", "3人称"].forEach((r, i) => h += '<tr><th>' + r + '</th><td>' + gk(p.f[i]) + '</td><td>' + gk(p.f[i + 3] + (i === 2 ? "(ν)" : "")) + '</td></tr>');
+    ["1人称", "2人称", "3人称"].forEach((r, i) => h += '<tr><th>' + r + '</th><td>' + gk(p.f[i]) + rdHTML(p.f[i], "rdc") + '</td><td>' + gk(p.f[i + 3] + (i === 2 ? "(ν)" : "")) + rdHTML(p.f[i + 3] + (i === 2 ? "(ν)" : ""), "rdc") + '</td></tr>');
   } else {
     h += '<tr><th></th><th>単数</th><th>複数</th></tr>';
-    ["主格", "属格", "与格", "対格"].forEach((r, i) => h += '<tr><th>' + r + '</th><td>' + gk(p.sg[i]) + '</td><td>' + gk(p.pl[i]) + '</td></tr>');
+    ["主格", "属格", "与格", "対格"].forEach((r, i) => h += '<tr><th>' + r + '</th><td>' + gk(p.sg[i]) + rdHTML(p.sg[i], "rdc") + '</td><td>' + gk(p.pl[i]) + rdHTML(p.pl[i], "rdc") + '</td></tr>');
   }
   return h + '</table></div>';
 }
 function alphaTable() {
   return '<div class="alpha">' + COURSE.alpha.map(a =>
-    '<div class="al"><span class="al-l">' + gk(a[0] + " " + a[1] + (a[1] === "σ" ? " ς" : "")) + '</span><span class="al-n">' + a[2] + '</span><span class="al-t">' + esc(a[3]) + '</span></div>').join("") + '</div>';
+    '<div class="al"><span class="al-l">' + gk(a[0] + " " + a[1] + (a[1] === "σ" ? " ς" : "")) + '</span><span class="al-n">' + a[2] + '</span><span class="al-t">' + esc(a[3]) + '</span><span class="al-i">[' + esc(COURSE.alphaIPA[a[1]]) + ']</span></div>').join("") + '</div>';
 }
 function fill(html) {
   return gk(html).replace(/<div data-par="([^"]+)"><\/div>/g, (m, id) => parTable(COURSE.par[id]))
@@ -336,7 +355,7 @@ function bindGloss(root, box) {
   $$(".w", root).forEach(sp => sp.addEventListener("click", () => {
     $$(".w.on", root).forEach(x => x.classList.remove("on")); sp.classList.add("on");
     const r = lookup(sp.dataset.w), b = typeof box === "function" ? box(sp) : box;
-    b.innerHTML = r.g ? r.g.map(x => '<div>' + gk(esc(x)).replace("｜", '<span class="sep">｜</span>') + '</div>').join("") : '<div class="muted">（語釈なし）</div>';
+    b.innerHTML = rdHTML(r.w, "rdg") + (r.g ? r.g.map(x => '<div>' + gk(esc(x)).replace("｜", '<span class="sep">｜</span>') + '</div>').join("") : '<div class="muted">（語釈なし）</div>');
     b.classList.remove("hidden");
   }));
 }
@@ -367,10 +386,10 @@ function runQuiz(o) {
     const kind = { c: "選ぶ", w: "書く", b: "作文", s: "読む" }[it.t];
     let h = '<div class="qz-kind k-' + it.t + '">' + kind + '</div>';
     if (it.t === "c") {
-      h += '<div class="qz-q">' + gk(it.q) + '</div><div class="opts">' +
+      h += '<div class="qz-q">' + gk(it.q) + '</div>' + (showRd(it) ? bigs(it.q).map(g => rdHTML(g, "rdq")).join("") : "") + '<div class="opts">' +
         shuffle(it.o).map((x, i) => '<button class="opt" data-v="' + esc(x) + '"><i>' + (i + 1) + '</i><span>' + gk(esc(x)) + '</span></button>').join("") + '</div>';
     } else if (it.t === "w") {
-      h += '<div class="qz-q">' + gk(it.q) + '</div><div class="win"><input id="ans" class="gin" type="text" placeholder="ローマ字で打つとギリシア文字に"><button class="btn pri" id="ok">答える</button></div>' +
+      h += '<div class="qz-q">' + gk(it.q) + '</div>' + (showRd(it) ? bigs(it.q).map(g => rdHTML(g, "rdq")).join("") : "") + '<div class="win"><input id="ans" class="gin" type="text" placeholder="ローマ字で打つとギリシア文字に"><button class="btn pri" id="ok">答える</button></div>' +
         '<div class="marks">' + [[")", "᾿", "滑らか"], ["(", "῾", "粗い"], ["/", "´", "鋭"], ["\\", "`", "重"], ["=", "῀", "曲"], ["j", "ι", "ι下書き"]].map(m =>
           '<button class="mk" data-m="' + esc(m[0]) + '" title="' + m[2] + '"><span>' + m[1] + '</span><small>' + m[2] + '</small></button>').join("") + '</div>' +
         '<details class="keys"><summary>入力のしかた</summary>' + KEYS_HELP + '</details>' +
@@ -383,7 +402,8 @@ function runQuiz(o) {
     } else if (it.t === "s") {
       h += '<div class="qz-q sent">' + gk(sentHTML(it.g)) + '</div><div class="gloss hidden" id="gl"></div>' +
         '<div class="qsub">語をタップすると意味が出る。訳を考えてから開く。</div>' +
-        '<div class="brow"><button class="btn pri" id="reveal">訳を見る</button></div><div class="tr hidden" id="tr">' + esc(it.ja) + '</div>' +
+        '<div class="rs-rd hidden" id="rdl">' + rdHTML(it.g) + '</div>' +
+        '<div class="brow">' + (prefs().rd !== "none" ? '<button class="btn" id="rdBtn">読み</button>' : '') + '<button class="btn pri" id="reveal">訳を見る</button></div><div class="tr hidden" id="tr">' + esc(it.ja) + '</div>' +
         '<div class="brow hidden" id="self"><button class="btn ng" id="sNo">あやしい</button><button class="btn ok" id="sYes">読めた</button></div>';
     }
     return h + '<div class="fb hidden" id="fb"></div>';
@@ -411,6 +431,7 @@ function runQuiz(o) {
       };
     } else if (it.t === "s") {
       bindGloss($(".qz-q"), $("#gl"));
+      if ($("#rdBtn")) $("#rdBtn").onclick = () => $("#rdl").classList.toggle("hidden");
       $("#reveal").onclick = () => { $("#tr").classList.remove("hidden"); $("#self").classList.remove("hidden"); $("#reveal").parentNode.classList.add("hidden"); };
       $("#sYes").onclick = () => { if (!answered) grade(2, "", true); };
       $("#sNo").onclick = () => { if (!answered) grade(0, "", true); };
@@ -437,6 +458,12 @@ function runQuiz(o) {
     if (cur.t === "w" && r !== 2) h += '<div class="fb-a">正しくは <b>' + gk(esc(cur.a[0])) + '</b>' + (given ? '<span class="you">あなた：' + gk(esc(given)) + '</span>' : "") + '</div>';
     if (cur.t === "c" && !okv) h += '<div class="fb-a">正しくは <b>' + gk(esc(cur.a)) + '</b></div>';
     if (cur.t === "b") h += '<div class="fb-a">' + (okv ? "" : "正しくは ") + '<b>' + gk(esc(cur.a.join(" "))) + '</b></div>';
+    if (prefs().rd !== "none") {   // 読み：問題の語と正解
+      const rs = bigs(cur.q), ans = cur.t === "b" ? cur.a.join(" ") : cur.t === "w" ? cur.a[0] : cur.t === "c" ? cur.a : "";
+      if (hasGk(ans)) rs.push(ans);
+      const seen = {};
+      h += rs.filter(g => !seen[g] && (seen[g] = 1)).map(g => '<div class="fb-rd"><span class="g">' + esc(g) + '</span>' + rdHTML(g, "rdf") + '</div>').join("");
+    }
     if (cur.ex) h += '<div class="fb-ex">' + gk(cur.ex) + '</div>';
     h += '<button class="btn pri next" id="nx">次へ ' + ICON.next + '</button>';
     fb.innerHTML = h; fb.classList.remove("hidden");
@@ -549,13 +576,16 @@ function viewHome() {
     '<details class="prefs"><summary class="prefs-h">設定</summary>' +
     prefRow("conv", "ローマ字 → ギリシア文字", [["1", "変換する"], ["0", "しない"]]) +
     prefRow("strict", "アクセント・気息", [["0", "省略しても正解"], ["1", "厳密に判定"]]) +
-    prefRow("auto", "正解のあと", [["0", "「次へ」を押す"], ["1", "自動で次へ"]]) + '</details>' +
+    prefRow("auto", "正解のあと", [["0", "「次へ」を押す"], ["1", "自動で次へ"]]) +
+    '<div class="pref-row"><span class="pref-l">読み（ローマ字・IPA）</span><span class="pref-t">' + [["both", "両方"], ["roman", "ローマ字"], ["ipa", "IPA"], ["none", "なし"]].map(v =>
+      '<button type="button" data-rdp="' + v[0] + '" class="' + (prefs().rd === v[0] ? "on" : "") + '">' + v[1] + '</button>').join("") + '</span></div>' + '</details>' +
     '<details class="prefs"><summary class="prefs-h">記録のバックアップ</summary>' +
     '<p class="pref-note" id="syncSt">' + syncHTML() + '</p>' +
     '<div class="brow left">' + (CFG.SCRIPT_URL ? '<button class="btn" id="bSync">いま同期</button>' : "") +
     '<button class="btn" id="bExp">ファイルに書き出す</button><label class="btn">ファイルから戻す<input type="file" id="bImp" accept="application/json,.json" hidden></label></div></details>' +
     '<div class="foot"><button class="ic-nav" id="bGuide" title="使い方">?</button><button class="ic-nav" id="bOut" title="ログアウト">' + ICON.x + '</button></div>' +
     '</div></div>';
+  $$("[data-rdp]").forEach(b => b.onclick = () => { setPref("rd", b.dataset.rdp); $$("[data-rdp]").forEach(x => x.classList.toggle("on", x === b)); });
   $$("[data-pref]").forEach(b => b.onclick = () => {
     setPref(b.dataset.pref, b.dataset.v === "1");
     $$('[data-pref="' + b.dataset.pref + '"]').forEach(x => x.classList.toggle("on", x === b));
@@ -657,15 +687,15 @@ function viewDay(n, step) {
     const R = d.read;
     if (R.kind === "words") {
       body.innerHTML = '<p class="lead">' + esc(R.lead) + '</p><div class="words">' + R.items.map(w =>
-        '<button class="wd"><span class="wd-g">' + gk(esc(w[0])) + '</span><span class="wd-r hidden"><b>' + esc(w[1]) + '</b>' + gk(esc(w[2])) + '</span></button>').join("") + '</div>' + nextBtn("read", "読み終えた");
+        '<button class="wd"><span class="wd-g">' + gk(esc(w[0])) + '</span><span class="wd-r hidden">' + (rdHTML(w[0], "rdw") || '<b>' + esc(w[1]) + '</b>') + gk(esc(w[2])) + '</span></button>').join("") + '</div>' + nextBtn("read", "読み終えた");
       $$(".wd").forEach(b => b.onclick = () => $(".wd-r", b).classList.toggle("hidden"));
     } else {
       body.innerHTML = '<p class="lead">' + esc(R.lead) + '</p>' + R.items.map((s, i) =>
         '<div class="rs' + (s[2] && s[2].goal ? " goal" : "") + '">' + (s[2] && s[2].goal ? '<div class="goal-h">最終目標の一文</div>' : '') +
         '<div class="rs-n">' + (i + 1) + '</div><div class="rs-g">' + gk(sentHTML(s[0])) + '</div><div class="gloss hidden"></div>' +
-        '<button class="link rs-t">訳</button><div class="tr hidden">' + esc(s[1]) + '</div></div>').join("") +
+        (prefs().rd !== "none" ? '<button class="link rs-r">読み</button>' : '') + '<button class="link rs-t">訳</button><div class="rs-rd hidden">' + rdHTML(s[0]) + '</div><div class="tr hidden">' + esc(s[1]) + '</div></div>').join("") +
         '<p class="note">読み終えると、これらの文が復習カードに入る。</p>' + nextBtn("read", "読み終えた");
-      $$(".rs").forEach(r => { bindGloss(r, $(".gloss", r)); $(".rs-t", r).onclick = () => $(".tr", r).classList.toggle("hidden"); });
+      $$(".rs").forEach(r => { bindGloss(r, $(".gloss", r)); $(".rs-t", r).onclick = () => $(".tr", r).classList.toggle("hidden"); if ($(".rs-r", r)) $(".rs-r", r).onclick = () => $(".rs-rd", r).classList.toggle("hidden"); });
     }
     $("#stepNext").onclick = () => { done("read"); addCards((id, c) => c.day === n && c.kind === "sent"); toNext("read"); };
   }
@@ -679,7 +709,7 @@ function viewDay(n, step) {
   }
 }
 function vRow(w) {
-  return '<div class="vrow"><span class="vg">' + gk(esc(w.g)) + '</span><span class="vh">' + gk(esc(w.h || "")) + '</span><span class="vj">' + esc(w.ja) + '</span>' +
+  return '<div class="vrow"><span class="vg">' + gk(esc(w.g)) + rdHTML(w.g, "rdv") + '</span><span class="vh">' + gk(esc(w.h || "")) + '</span><span class="vj">' + esc(w.ja) + '</span>' +
     (w.note ? '<span class="vn">' + gk(esc(w.note)) + '</span>' : '') + '</div>';
 }
 /* 練習の10問：まだ正解していない問題・まちがえた問題を先に。自動生成の文字問題は少なめに */

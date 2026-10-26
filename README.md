@@ -8,6 +8,7 @@
 | `index.html` | 入口（1ページで全画面を切りかえる：#/ ホーム、#/day/N レッスン、#/review 復習、#/tables 文法表） |
 | `app.js` | しくみ（ログイン・記録・復習カード・ギリシア文字入力・問題の実行・画面） |
 | `course.js` | 教材データ（第1週＝White, *The First Greek Book* Lesson I–VI） |
+| `reading.js` | 読み（ローマ字転写と IPA＝復元アッティカ発音）。α ι υ の長さは語ごとにここで登録する |
 | `style.css` | 見た目（フランス語版の base.css と同じ色・形。アクセント色だけ青） |
 | `config.js` | 同期用 Apps Script の URL（空なら端末内だけに記録） |
 | `apps-script/Code.gs` | 同期用サーバー（任意）。手順はファイル冒頭 |

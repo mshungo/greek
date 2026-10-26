@@ -296,3 +296,27 @@ table.mini td.gk{font-size:15px;}
 .lv-b i{display:block;width:100%;background:linear-gradient(180deg,#9fb7d6,#56739a);}
 .lv b{font-size:13px;}
 .lv small{font-size:10px;color:var(--ink-faint);}
+
+/* 読み（ローマ字・IPA） */
+.rd{display:block;font-family:var(--greek);font-size:13px;line-height:1.5;color:var(--ink-soft);font-weight:400;}
+.rd-r{color:#6d6178;}
+.rd-i{margin-left:8px;color:#8f86a0;letter-spacing:.2px;}
+.rd-u{margin-left:6px;font-family:"Noto Sans JP",sans-serif;font-size:10.5px;color:var(--ink-faint);}
+.rd.rdq{text-align:center;font-size:14px;margin:-6px 0 12px;}
+.qz-q .rd.rdq{margin:4px 0 0;font-size:13px;}
+.rd.rdc{font-size:11px;line-height:1.3;}
+.rd.rdc .rd-i{display:block;margin-left:0;}
+.rd.rdv{font-size:12px;margin-top:2px;}
+.rd.rdv .rd-i{display:block;margin-left:0;}
+.rd.rdg{margin-bottom:3px;font-size:13px;}
+.rd.rdf{display:inline;margin-left:8px;}
+.rd.rdw{font-size:13px;}
+.rd.rdw .rd-r{display:block;font-weight:700;color:var(--accent-ink);font-size:13.5px;}
+.rd.rdw .rd-i{margin-left:0;}
+.fb-rd{margin-top:4px;font-size:14px;}
+.rs-rd{margin-top:6px;padding:6px 10px;border-radius:10px;background:#f7f4fb;}
+.rs-rd .rd{font-size:13.5px;}
+.rs-rd .rd-i{display:block;margin-left:0;}
+.rs-r{margin-right:12px;}
+.al-i{font-size:11px;color:#8f86a0;font-family:var(--greek);}
+.vg{min-width:7.5em;}
